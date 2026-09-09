@@ -120,3 +120,17 @@ summarize:
 - components added
 - tests performed
 - remaining issues
+
+## Game Design
+
+The primary game design specification is stored in:
+
+GAME_DESIGN.md
+
+Before implementing gameplay features:
+
+1. Read GAME_DESIGN.md.
+2. Identify the relevant milestone.
+3. Implement only that milestone unless explicitly asked otherwise.
+4. Do not implement future features early.
+5. Prefer the simplest architecture that satisfies the current game design.
