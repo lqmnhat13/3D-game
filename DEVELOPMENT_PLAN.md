@@ -90,7 +90,10 @@ SampleScene
 
 ## Current Milestone
 
-**M2 — Hearth System**
+**M5 — First Enemy + NavMesh AI: COMPLETE**
+
+M2–M4 systems are present in the inspected project; their historical checklists
+below have not been re-certified during this M5 task.
 
 ## Completed
 
@@ -131,13 +134,13 @@ M0  Project Setup                         COMPLETE
  ↓
 M1  Player Movement + Isometric Camera    COMPLETE
  ↓
-M2  Hearth System                         CURRENT
+M2  Hearth System                         PRESENT
  ↓
-M3  Resource Gathering
+M3  Resource Gathering                    PRESENT
  ↓
-M4  Day / Night Cycle
+M4  Day / Night Cycle                     PRESENT
  ↓
-M5  First Enemy + NavMesh AI
+M5  First Enemy + NavMesh AI               COMPLETE
  ↓
 M6  Wave System
  ↓
@@ -574,6 +577,8 @@ cycles reliably.
 
 # 10. M5 — First Enemy + NavMesh AI
 
+Status: **COMPLETE — validated in Play Mode on 2026-09-12**
+
 ## Goal
 
 Create the first complete enemy.
@@ -648,12 +653,39 @@ Only introduce this if balancing requires it.
 
 ## Validation
 
-- [ ] NavMesh exists
-- [ ] Enemy reaches Hearth
-- [ ] Enemy attacks Hearth
-- [ ] Hearth health decreases
-- [ ] Enemy can die
-- [ ] Console clean
+- [x] NavMesh exists
+- [x] Enemy reaches Hearth
+- [x] Enemy attacks Hearth
+- [x] Hearth health decreases
+- [x] Enemy can die
+- [x] Console clean
+
+Validation A–G (2026-09-12): the saved NavMesh contains 84 vertices and a
+complete spawn-to-Hearth path. The Crawler navigated naturally from (-8, 1, 4),
+with no initial test teleport or damage outside its 1.8-unit attack range.
+It stopped and faced the Hearth, dealing 10 damage per attack (100 → 90 → 80).
+Measured stationary attack intervals were 1.005 and 1.004 seconds.
+An explicit test reposition proved Attack → Chase → Attack and renewed navigation.
+An overkill attack reduced Hearth health from 5 to 0 without going negative.
+
+EnemyHealth checks passed: initial/max health 30; damage 30 → 18; healing
+18 → 23; excess healing clamped to 30; negative/nonfinite amounts ignored;
+lethal and repeated damage clamped to zero; healing did not resurrect the enemy.
+Dead state disabled the agent and object, with no movement or damage for two
+cooldowns. After Play Mode, Hearth Health/Fuel returned to 100/100.
+
+Agent settings: speed 6, acceleration 20, angular speed 360, stopping distance
+1.5, radius 0.5, height 2, base offset 1, auto braking/repath enabled.
+Attack settings: range 1.8, damage 10, cooldown 1 second.
+
+Repeat in a fresh Play session using **Tools > Validation > Run M5 (in Play Mode)**.
+The check temporarily enables background execution and restores it afterward.
+The check logs `M5 PASS A-G` on success.
+Stop Play Mode afterward to discard test damage.
+
+Scope: one manually placed ShadowCrawler_Test and a reusable ShadowCrawler
+prefab. Dead enemies deactivate; respawning/pooling, waves, building, player
+combat, win/lose logic, and light-based weakening are not implemented here.
 
 ## Exit Criteria
 
@@ -1388,19 +1420,18 @@ Whenever a milestone is completed, update this section.
 
 - M0 — Project Setup
 - M1 — Player Movement + Isometric Camera
+- M5 — First Enemy + NavMesh AI (validated 2026-09-12; M2–M4 systems were already present)
 
 ## Current
 
-- M2 — Hearth System
+- M5 — COMPLETE
 
 ## Next
 
-- M3 — Resource Gathering
+- M6 — Wave System (not started)
 
 ## Not Started
 
-- M4 — Day / Night Cycle
-- M5 — First Enemy + NavMesh AI
 - M6 — Wave System
 - M7 — Building System / Fence
 - M8 — Player Combat
@@ -1443,22 +1474,8 @@ M2 Hearth System
 
 # 26. Current Immediate Task
 
-Implement:
-
-**M2 — Hearth System**
-
-Do not begin M3 until M2 passes all exit criteria.
-
-Expected immediate result:
-
-```text
-Hearth
-├── Health
-├── Fuel
-└── Light Radius
-```
-
-M2 has not been implemented yet.
+**M5 is complete.** See section 10 for Play Mode validation and limitations.
+M6 is next, but requires a separate implementation request.
 
 ---
 
