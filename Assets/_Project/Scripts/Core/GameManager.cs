@@ -13,6 +13,7 @@ public sealed class GameManager : MonoBehaviour
     public GameState CurrentState { get; private set; } = GameState.Day;
     public int CurrentDay { get; private set; } = 1;
     public float RemainingTime { get; private set; }
+    public event System.Action<GameState> StateChanged;
 
     private void Start()
     {
@@ -62,6 +63,7 @@ public sealed class GameManager : MonoBehaviour
         CurrentState = state;
         RemainingTime = Mathf.Max(0.1f, state == GameState.Day ? dayDuration : nightDuration);
         directionalLight.intensity = state == GameState.Day ? dayLightIntensity : nightLightIntensity;
+        StateChanged?.Invoke(state);
     }
 
     private void OnValidate()

@@ -90,7 +90,7 @@ SampleScene
 
 ## Current Milestone
 
-**M5 — First Enemy + NavMesh AI: COMPLETE**
+**M7 — Building System / Wooden Fence: COMPLETE**
 
 M2–M4 systems are present in the inspected project; their historical checklists
 below have not been re-certified during this M5 task.
@@ -142,9 +142,9 @@ M4  Day / Night Cycle                     PRESENT
  ↓
 M5  First Enemy + NavMesh AI               COMPLETE
  ↓
-M6  Wave System
+M6  Wave System                           COMPLETE
  ↓
-M7  Building / Wooden Fence
+M7  Building / Wooden Fence               COMPLETE
  ↓
 M8  Player Combat
  ↓
@@ -701,6 +701,8 @@ navigate
 
 # 11. M6 — Wave System
 
+Status: **COMPLETE — validated in Play Mode on 2026-09-12**
+
 ## Goal
 
 Spawn enemies during Night.
@@ -736,31 +738,57 @@ Assets/_Project/Scripts/AI/EnemySpawner.cs
 Night 1:
 
 ```text
-5 Crawlers
+3 Crawlers
 ```
 
 Night 2:
 
 ```text
-7 Crawlers
+5 Crawlers
 ```
 
 Night 3:
 
 ```text
-10 Crawlers
+7 Crawlers
 ```
 
 Exact values should be easy to rebalance in Inspector.
 
 ## Validation
 
-- [ ] enemies only spawn during Night
-- [ ] spawn points work
-- [ ] correct enemy count
-- [ ] enemy cleanup works
-- [ ] Day does not spawn enemies
-- [ ] Console clean
+- [x] enemies only spawn during Night
+- [x] spawn points work
+- [x] correct enemy count
+- [x] enemy cleanup works
+- [x] Day does not spawn enemies
+- [x] Console clean
+
+Implementation: WaveManager uses GameManager.StateChanged and CurrentDay;
+EnemySpawner reuses ShadowCrawler.prefab, randomly selects reachable points,
+and assigns the Hearth reference. EnemyHealth.Died fires once before deactivation.
+Living enemies are tracked by identity, removed once on death, and destroyed.
+Day cancels pending spawns, deactivates/destroys survivors, and resets tracking.
+
+Settings: baseEnemyCount 3, enemiesAddedPerNight 2, spawnInterval 1.5 seconds.
+Counts use `3 + (CurrentDay - 1) * 2`. Spawn points are North (0, 0.05, 22),
+South (0, 0.05, -22), East (22, 0.05, 0), West (-22, 0.05, 0).
+All four resolve to the existing NavMesh with complete paths to the Hearth.
+
+Validation A–G passed: initial Day empty; Night 1 spawned 3/3; Night 2 spawned
+5/5; measured intervals 1.500–1.505 seconds; valid spawn origins and navigation;
+exactly one death notification before deactivation and one count decrement;
+Day cleanup with living enemies. A shortened Night 3 spawned 1/7 before Day
+cancelled the remaining six; no enemies appeared during the following Day.
+
+Repeat with Tools > Validation > Run M6 (in Play Mode), in a fresh Play session.
+The check uses temporary durations and background execution, then restores them.
+Exit Play Mode to discard test damage. Final saved durations are 60/60 seconds,
+with Hearth Health/Fuel 100/100. ShadowCrawler_Test was removed after validation;
+the existing prefab is unchanged. No packages or M7+ systems were added.
+
+Limitations: prototype enemy visuals; no combat input yet (validation uses
+TakeDamage); wave completion does not shorten the GameManager's Night timer.
 
 ## Exit Criteria
 
@@ -776,6 +804,8 @@ start
 ---
 
 # 12. M7 — Building System / Wooden Fence
+
+Status: **COMPLETE — validated in Play Mode on 2026-09-12**
 
 ## Goal
 
@@ -834,14 +864,62 @@ Assets/_Project/Scripts/Building/Fence.cs
 
 ## Validation
 
-- [ ] preview follows mouse
-- [ ] invalid placement rejected
-- [ ] Wood cost checked
-- [ ] Wood deducted
-- [ ] Fence blocks path
-- [ ] Enemy can attack Fence
-- [ ] Fence can be destroyed
-- [ ] Console clean
+- [x] preview follows mouse
+- [x] invalid placement rejected
+- [x] Wood cost checked
+- [x] Wood deducted
+- [x] Fence blocks path
+- [x] Enemy can attack Fence
+- [x] Fence can be destroyed
+- [x] Console clean
+
+Implementation: B toggles build mode; existing Attack input (left click / Enter)
+confirms placement. Move and Interact bindings are unchanged. The existing Player
+has BuildingSystem with references to Main Camera, Ground, Hearth and WoodenFence.
+The prefab has two posts/two rails, a BoxCollider (2.8 x 1.5 x 0.4),
+PlaceableBuilding (5 Wood), Fence (50 Health), and a matching box NavMeshObstacle.
+Carving is enabled, stationary-only, with 0.1 movement threshold and 0.1s stationary delay.
+
+Placement rounds X/Z to whole units, checks the full footprint on Ground, and uses
+a non-allocating overlap box with 0.1-unit clearance. Hearth renderer bounds are
+checked explicitly because the existing Hearth has no collider. Preview copies
+only the visual child and uses green/red tint; it has no gameplay components.
+PlayerInventory is reused with unchanged normal defaults (0 Wood / 0 Stone).
+
+Play Mode validation (`Tools/Validation/Run M7 (in Play Mode)` in a fresh session):
+
+- A: B action, two mouse positions, snapping, and visual-only preview passed.
+- B: actual left-click placed one Fence at the preview position; Wood 20 -> 15.
+- C: 4 Wood rejected a 5-Wood Fence with no changes.
+- D: Hearth, existing Fence, Player, non-Ground and snapped Ground-edge attempts
+  were rejected without creating a Fence or spending Wood.
+- E: initial 50 Health; 12 damage -> 38; invalid damage ignored; overkill and
+  repeated damage clamped to 0, deactivated immediately and removed once.
+- Physics: CharacterController was stopped by the Fence collider.
+- F: a Fence placed in front of an existing Crawler carved the direct route;
+  the alternate path remained complete. Enemy detoured 2.07 units laterally,
+  left Fence at 50 Health and attacked Hearth (100 -> 90).
+- G: a runtime-only wall across the existing NavMesh produced a partial route.
+  EnemySpawner spawned from the blocked side; the enemy approached and attacked
+  a Fence for 10 damage at measured 1.000–1.004s intervals, destroyed it, then
+  used the restored complete route to attack Hearth. Spawner now accepts partial
+  paths so building a wall does not suppress waves.
+- H: actual W/E input moved Player and gathered Wood. Existing M6Validation
+  passed again after the spawner change: 3/3 then 5/5 enemies, ~1.5s intervals,
+  death counting, Day cleanup, and cancellation of pending Night 3 spawns.
+  M5Validation also passed without fences: normal Hearth attacks, cooldown,
+  attack range, Chase/Attack transitions, damage clamping and death behavior.
+
+Final saved state: Play Mode off; SampleScene saved; no test fences or previews;
+Hearth Health/Fuel 100/100; Day/Night durations 60/60; Player Wood/Stone 0/0.
+Final Unity Console inspection: 0 errors / 0 warnings. Prototype visual capture:
+`Validation/M7/wooden-fence.png`.
+
+Known limits: fixed Fence orientation and unit snapping on the current flat Ground;
+keyboard/mouse building only. Fence selection is a local 3-unit search near the
+partial-path endpoint, not a maze planner. Carving updates asynchronously; there
+is no runtime NavMesh rebake. No repair, upgrades, Player combat or M8+ features.
+Runtime test resources, fences and temporary settings are discarded on Play exit.
 
 ## Exit Criteria
 
@@ -1421,19 +1499,19 @@ Whenever a milestone is completed, update this section.
 - M0 — Project Setup
 - M1 — Player Movement + Isometric Camera
 - M5 — First Enemy + NavMesh AI (validated 2026-09-12; M2–M4 systems were already present)
+- M6 — Wave System (validated 2026-09-12)
+- M7 — Building System / Wooden Fence (validated 2026-09-12)
 
 ## Current
 
-- M5 — COMPLETE
+- M7 — COMPLETE
 
 ## Next
 
-- M6 — Wave System (not started)
+- M8 — Player Combat (not started; requires a separate request)
 
 ## Not Started
 
-- M6 — Wave System
-- M7 — Building System / Fence
 - M8 — Player Combat
 - M9 — Win / Lose
 - M10 — UI / HUD
@@ -1474,8 +1552,8 @@ M2 Hearth System
 
 # 26. Current Immediate Task
 
-**M5 is complete.** See section 10 for Play Mode validation and limitations.
-M6 is next, but requires a separate implementation request.
+**M7 is complete.** See section 12 for Play Mode validation and limitations.
+M8 is next, but requires a separate implementation request.
 
 ---
 

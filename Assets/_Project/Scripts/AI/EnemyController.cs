@@ -13,13 +13,25 @@ public sealed class EnemyController : MonoBehaviour
     [SerializeField] private EnemyState state = EnemyState.Chase;
     private float nextAttackTime;
     private float nextPathTime;
+    private Fence blockingFence;
+    private NavMeshPath hearthPath;
+    private NavMeshPath approachPath;
+    private readonly Vector3[] corners = new Vector3[64];
+    private readonly Collider[] nearby = new Collider[32];
 
     public EnemyState State => state;
+
+    public void SetHearth(HearthController target)
+    {
+        hearth = target;
+    }
 
     private void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         health = GetComponent<EnemyHealth>();
+        hearthPath = new NavMeshPath();
+        approachPath = new NavMeshPath();
     }
 
     private void Start()
@@ -39,9 +51,20 @@ public sealed class EnemyController : MonoBehaviour
             return;
         }
 
-        Vector3 offset = hearth.transform.position - transform.position;
+        if (Time.time >= nextPathTime)
+        {
+            nextPathTime = Time.time + 0.25f;
+            UpdateRoute();
+        }
+
+        bool targetsFence = blockingFence != null && blockingFence.isActiveAndEnabled && !blockingFence.IsDestroyed;
+        Vector3 target = targetsFence ? blockingFence.ClosestPoint(transform.position) : hearth.transform.position;
+        Vector3 offset = target - transform.position;
         offset.y = 0f;
-        if (offset.sqrMagnitude <= attackRange * attackRange)
+        bool fenceInWay = !targetsFence && Physics.Linecast(transform.position, hearth.transform.position,
+            out var obstruction, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+            && obstruction.collider.TryGetComponent<Fence>(out _);
+        if (offset.sqrMagnitude <= attackRange * attackRange && !fenceInWay)
         {
             state = EnemyState.Attack;
             agent.isStopped = true;
@@ -50,7 +73,8 @@ public sealed class EnemyController : MonoBehaviour
                 transform.rotation = Quaternion.LookRotation(offset);
             if (Time.time >= nextAttackTime)
             {
-                hearth.TakeDamage(attackDamage);
+                if (targetsFence) blockingFence.TakeDamage(attackDamage);
+                else hearth.TakeDamage(attackDamage);
                 nextAttackTime = Time.time + attackCooldown;
             }
             return;
@@ -58,10 +82,38 @@ public sealed class EnemyController : MonoBehaviour
 
         state = EnemyState.Chase;
         agent.isStopped = false;
-        if (Time.time < nextPathTime) return;
-        nextPathTime = Time.time + 0.25f;
-        if (NavMesh.SamplePosition(hearth.transform.position, out var hit, 2f, agent.areaMask))
-            agent.SetDestination(hit.position);
+    }
+
+    private void UpdateRoute()
+    {
+        blockingFence = null;
+        if (!NavMesh.SamplePosition(hearth.transform.position, out var hit, 2f, agent.areaMask)) return;
+        agent.CalculatePath(hit.position, hearthPath);
+        if (hearthPath.status == NavMeshPathStatus.PathComplete)
+        {
+            agent.SetPath(hearthPath);
+            return;
+        }
+
+        int cornerCount = hearthPath.GetCornersNonAlloc(corners);
+        Vector3 end = cornerCount > 0 ? corners[cornerCount - 1] : transform.position;
+        int count = Physics.OverlapSphereNonAlloc(end, 3f, nearby, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        float nearest = float.PositiveInfinity;
+        Vector3 destination = end;
+        // ponytail: local partial-path endpoint search; larger mazes would need obstacle planning.
+        for (int i = 0; i < count; i++)
+        {
+            if (!nearby[i].TryGetComponent<Fence>(out var fence) || fence.IsDestroyed) continue;
+            Vector3 point = fence.ClosestPoint(end + Vector3.up * agent.baseOffset);
+            float distance = (point - end).sqrMagnitude;
+            if (distance >= nearest || !NavMesh.SamplePosition(point, out var approach, 2f, agent.areaMask)
+                || !agent.CalculatePath(approach.position, approachPath)
+                || approachPath.status != NavMeshPathStatus.PathComplete) continue;
+            nearest = distance;
+            blockingFence = fence;
+            destination = approach.position;
+        }
+        agent.SetDestination(destination);
     }
 
     public void Die()

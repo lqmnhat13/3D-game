@@ -7,6 +7,7 @@ public sealed class EnemyHealth : MonoBehaviour
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
     public bool IsDead => currentHealth <= 0f;
+    public event System.Action<EnemyHealth> Died;
 
     private void Awake()
     {
@@ -27,6 +28,7 @@ public sealed class EnemyHealth : MonoBehaviour
         if (!IsDead) return;
 
         if (TryGetComponent<EnemyController>(out var controller)) controller.Die();
+        Died?.Invoke(this);
         gameObject.SetActive(false);
     }
 }
