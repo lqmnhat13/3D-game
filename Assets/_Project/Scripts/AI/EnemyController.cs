@@ -10,7 +10,9 @@ public sealed class EnemyController : MonoBehaviour
     [SerializeField, Min(0.1f)] private float attackRange = 1.8f;
     [SerializeField, Min(0f)] private float attackDamage = 10f;
     [SerializeField, Min(0.1f)] private float attackCooldown = 1f;
+    [SerializeField, Range(0f, 1f)] private float insideLightSpeedMultiplier = 0.7f;
     [SerializeField] private EnemyState state = EnemyState.Chase;
+    private float normalSpeed;
     private float nextAttackTime;
     private float nextPathTime;
     private Fence blockingFence;
@@ -31,6 +33,7 @@ public sealed class EnemyController : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         health = GetComponent<EnemyHealth>();
+        normalSpeed = agent.speed;
         hearthPath = new NavMeshPath();
         approachPath = new NavMeshPath();
     }
@@ -52,6 +55,8 @@ public sealed class EnemyController : MonoBehaviour
             state = EnemyState.Chase;
             return;
         }
+
+        agent.speed = normalSpeed * (hearth.IsInsideLight(transform.position) ? insideLightSpeedMultiplier : 1f);
 
         bool targetsPlayer = player != null && player.isActiveAndEnabled && !player.IsDead
             && HorizontalDistanceSquared(player.transform.position) <= attackRange * attackRange;

@@ -16,6 +16,7 @@ public sealed class WaveManager : MonoBehaviour
     public int EnemiesSpawned { get; private set; }
     public int EnemiesAlive => living.Count;
     public bool IsWaveActive { get; private set; }
+    public event System.Action WaveCompleted;
 
     private void OnEnable()
     {
@@ -68,7 +69,11 @@ public sealed class WaveManager : MonoBehaviour
         if (!living.Remove(enemy)) return;
         enemy.Died -= OnEnemyDied;
         Destroy(enemy.gameObject);
-        if (EnemiesSpawned == TotalEnemiesScheduled && living.Count == 0) IsWaveActive = false;
+        if (EnemiesSpawned == TotalEnemiesScheduled && living.Count == 0)
+        {
+            IsWaveActive = false;
+            WaveCompleted?.Invoke();
+        }
     }
 
     private void Cleanup()

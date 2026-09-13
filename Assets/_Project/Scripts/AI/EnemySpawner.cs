@@ -19,6 +19,7 @@ public sealed class EnemySpawner : MonoBehaviour
     {
         if (prefabAgent == null || hearth == null || spawnPoints == null || spawnPoints.Length == 0)
             return null;
+        path ??= new NavMeshPath();
 
         var filter = new NavMeshQueryFilter { agentTypeID = prefabAgent.agentTypeID, areaMask = prefabAgent.areaMask };
         if (!NavMesh.SamplePosition(hearth.transform.position, out var destination, 2f, filter)) return null;

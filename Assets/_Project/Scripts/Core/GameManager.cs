@@ -72,14 +72,8 @@ public sealed class GameManager : MonoBehaviour
             {
                 if (CurrentState == GameState.Night)
                 {
-                    if (CurrentDay >= requiredNightsToWin)
-                    {
-                        if (playerHealth.IsDead || hearth.IsDestroyed) GameOver();
-                        else Victory();
-                        return;
-                    }
-                    CurrentDay++;
-                    EnterState(GameState.Day);
+                    CompleteNight();
+                    if (IsTerminal) return;
                 }
                 else
                 {
@@ -95,12 +89,28 @@ public sealed class GameManager : MonoBehaviour
         CurrentState = state;
         RemainingTime = Mathf.Max(0.1f, state == GameState.Day ? dayDuration : nightDuration);
         directionalLight.intensity = state == GameState.Day ? dayLightIntensity : nightLightIntensity;
+        if (state == GameState.Day)
+            foreach (var node in FindObjectsByType<ResourceNode>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                node.ResetForDay();
         StateChanged?.Invoke(state);
     }
 
     private void GameOver()
     {
         EndGame(GameState.GameOver);
+    }
+
+    private void CompleteNight()
+    {
+        if (CurrentState != GameState.Night || IsTerminal) return;
+        if (CurrentDay >= requiredNightsToWin)
+        {
+            if (playerHealth.IsDead || hearth.IsDestroyed) GameOver();
+            else Victory();
+            return;
+        }
+        CurrentDay++;
+        EnterState(GameState.Day);
     }
 
     private void Victory()
@@ -125,9 +135,10 @@ public sealed class GameManager : MonoBehaviour
 
     private void Subscribe()
     {
-        if (subscribed || playerHealth == null || hearth == null) return;
+        if (subscribed || playerHealth == null || hearth == null || waveManager == null) return;
         playerHealth.Died += OnPlayerDied;
         hearth.Destroyed += OnHearthDestroyed;
+        waveManager.WaveCompleted += OnWaveCompleted;
         subscribed = true;
     }
 
@@ -136,11 +147,13 @@ public sealed class GameManager : MonoBehaviour
         if (!subscribed) return;
         playerHealth.Died -= OnPlayerDied;
         hearth.Destroyed -= OnHearthDestroyed;
+        if (waveManager != null) waveManager.WaveCompleted -= OnWaveCompleted;
         subscribed = false;
     }
 
     private void OnPlayerDied(PlayerHealth _) => GameOver();
     private void OnHearthDestroyed(HearthController _) => GameOver();
+    private void OnWaveCompleted() => CompleteNight();
 
     private void OnValidate()
     {

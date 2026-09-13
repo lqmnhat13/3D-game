@@ -148,7 +148,16 @@ M7 - Fence building
 M8 - Combat
 M9 - Win/lose
 M10 - UI
-M11 - Polish
+M11 - Core loop completion
+M12 - Visual polish
+
+M11 completes the survival loop with these rules:
+
+- Interact near a non-full Hearth to spend 1 Wood and restore 20 Fuel.
+- Each Day reactivates resource nodes, providing 10 Wood and 3 Stone.
+- Enemies inside the Hearth light move at 70% of normal speed.
+- A Night ends early only after every scheduled enemy has spawned and no enemies remain alive.
+- Clearing Night 5 produces Victory without starting Day 6; Player or Hearth death still takes priority.
 
 ## Scope Rules
 

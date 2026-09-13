@@ -18,4 +18,10 @@ public sealed class ResourceNode : MonoBehaviour
         gameObject.SetActive(false);
         return true;
     }
+
+    public void ResetForDay()
+    {
+        collected = false;
+        gameObject.SetActive(true);
+    }
 }

@@ -5,11 +5,14 @@ using UnityEngine.InputSystem;
 public sealed class PlayerInteractor : MonoBehaviour
 {
     [SerializeField, Min(0f)] private float interactionRadius = 2.5f;
+    [SerializeField, Min(0f)] private float fuelPerWood = 20f;
     private PlayerInventory inventory;
+    private HearthController hearth;
 
     private void Awake()
     {
         inventory = GetComponent<PlayerInventory>();
+        hearth = FindFirstObjectByType<HearthController>();
     }
 
     private void OnInteract(InputValue value)
@@ -20,6 +23,14 @@ public sealed class PlayerInteractor : MonoBehaviour
     public bool Interact()
     {
         if (inventory == null || interactionRadius <= 0f) return false;
+
+        if (hearth != null && !hearth.IsDestroyed && hearth.CurrentFuel < hearth.MaxFuel
+            && (hearth.transform.position - transform.position).sqrMagnitude <= interactionRadius * interactionRadius
+            && inventory.SpendResource(ResourceType.Wood, 1))
+        {
+            hearth.AddFuel(fuelPerWood);
+            return true;
+        }
 
         ResourceNode nearest = null;
         float nearestDistance = interactionRadius * interactionRadius;

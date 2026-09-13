@@ -150,9 +150,11 @@ M8  Player Combat                          COMPLETE
  ↓
 M9  Win / Lose Conditions                 COMPLETE
  ↓
-M10 UI / HUD
+M10 UI / HUD                             COMPLETE
  ↓
-M11 Polish / Audio / Lighting / Extra Content
+M11 Core Loop Completion                 COMPLETE
+ ↓
+M12 Visual Polish / Audio / Lighting / Extra Content
 ```
 
 ---
@@ -1216,11 +1218,42 @@ score, Endless Mode or save/load. Those remain outside M10.
 
 ---
 
-# 16. M11 — Polish
+# 16. M11 — Core Loop Completion
 
 ## Goal
 
-Improve presentation without destabilizing core gameplay.
+Close the remaining survival-loop gaps before presentation work.
+
+## Completed Rules
+
+- Hearth refueling reuses Interact: 1 Wood restores 20 Fuel; a full Hearth consumes no Wood.
+- Tree and Rock nodes reactivate on every Day with 10 Wood and 3 Stone available.
+- Enemies inside the current Hearth light radius move at a 0.7 speed multiplier.
+- A Night ends early only after all scheduled enemies have spawned and `EnemiesAlive` reaches zero.
+- Night 5 completion produces Victory without Day 6; GameOver retains final-boundary priority.
+
+## Implementation Notes
+
+- Existing PlayerInteractor, ResourceNode, GameManager, WaveManager, HearthController and EnemyController flows were reused.
+- No managers, packages, interfaces or input actions were added.
+- EnemySpawner recreates its cached NavMeshPath if an Editor reload clears it between waves.
+- The M6 validator temporarily elevates and then restores Player/Hearth health so M9 terminal states do not invalidate wave isolation.
+
+## Validation
+
+- M11A-D validators passed in fresh Play Mode sessions.
+- M5-M10 regressions passed, including the corrected M6 validator.
+- A live five-night loop gathered and refueled each Day, spawned waves 3/5/7/9/11, and ended in Victory on Day 5.
+- Both Player-dead and Hearth-destroyed Night 5 boundary checks produced GameOver, never Victory.
+- Final saved values: Player 100/100; Hearth 100/100; Fuel 100/100; Day/Night 60/60.
+
+---
+
+# 16A. M12 — Visual Polish
+
+## Goal
+
+Improve presentation without destabilizing core gameplay. This milestone has not started.
 
 ## Priority Order
 
@@ -1446,7 +1479,9 @@ M9 Win Lose
 ↓
 M10 UI
 ↓
-M11 Polish
+M11 Core Loop Completion
+↓
+M12 Visual Polish
 ```
 
 ---
@@ -1593,18 +1628,19 @@ Whenever a milestone is completed, update this section.
 - M8 — Player Combat (validated 2026-09-12)
 - M9 — Win / Lose Conditions (validated 2026-09-13)
 - M10 — UI / HUD (validated 2026-09-13)
+- M11 — Core Loop Completion (validated 2026-09-13)
 
 ## Current
 
-- M10 — COMPLETE
+- M11 — COMPLETE
 
 ## Next
 
-- M11 — Polish (not started; requires a separate request)
+- M12 — Visual Polish (not started; requires a separate request)
 
 ## Not Started
 
-- M11 — Polish
+- M12 — Visual Polish
 
 ---
 
@@ -1641,8 +1677,8 @@ M2 Hearth System
 
 # 26. Current Immediate Task
 
-**M10 is complete.** See section 15 for Play Mode validation and limitations.
-M11 is next, but requires a separate implementation request.
+**M11 Core Loop Completion is complete.** See section 16 for implementation and
+Play Mode validation. M12 Visual Polish is next and has not started.
 
 ---
 

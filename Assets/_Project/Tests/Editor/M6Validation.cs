@@ -9,10 +9,12 @@ public static class M6Validation
     private static GameManager game;
     private static WaveManager wave;
     private static HearthController hearth;
+    private static PlayerHealth player;
     private static Transform[] points;
     private static readonly Dictionary<int, Vector3> seen = new();
     private static readonly int[] spawned = new int[4];
     private static float started, lastSpawn, nightStarted, oldDay, oldNight;
+    private static float oldPlayerMax, oldPlayerHealth, oldHearthMax, oldHearthHealth;
     private static int night;
     private static bool deathChecked, moved, background;
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -24,7 +26,8 @@ public static class M6Validation
         game = Object.FindFirstObjectByType<GameManager>();
         wave = Object.FindFirstObjectByType<WaveManager>();
         hearth = Object.FindFirstObjectByType<HearthController>();
-        Require(game != null && wave != null && hearth != null && wave.enabled, "Required components ready.");
+        player = Object.FindFirstObjectByType<PlayerHealth>();
+        Require(game != null && wave != null && hearth != null && player != null && wave.enabled, "Required components ready.");
         Require(game.CurrentState == GameState.Day && game.CurrentDay == 1, "Start on Day 1.");
         points = GameObject.Find("EnemySpawnPoints").GetComponentsInChildren<Transform>();
         Require(points.Length == 5, "Four spawn points.");
@@ -39,6 +42,12 @@ public static class M6Validation
         }
         oldDay = (float)typeof(GameManager).GetField("dayDuration", Private).GetValue(game);
         oldNight = (float)typeof(GameManager).GetField("nightDuration", Private).GetValue(game);
+        oldPlayerMax = GetHealth(player, "maxHealth");
+        oldPlayerHealth = GetHealth(player, "currentHealth");
+        oldHearthMax = GetHealth(hearth, "maxHealth");
+        oldHearthHealth = GetHealth(hearth, "currentHealth");
+        SetHealth(player, 10000f, 10000f);
+        SetHealth(hearth, 10000f, 10000f);
         SetDuration("dayDuration", 2f);
         SetDuration("nightDuration", 9f);
         typeof(GameManager).GetMethod("AdvanceTime", Private).Invoke(game, new object[] { Mathf.Max(0f, game.RemainingTime - 2f) });
@@ -79,7 +88,7 @@ public static class M6Validation
                 }
                 return;
             }
-            Require(game.CurrentState == GameState.Night, "Only Day/Night used.");
+            Require(game.CurrentState == GameState.Night, "Wave validation must not enter a terminal state.");
             if (night != game.CurrentDay)
             {
                 night = game.CurrentDay;
@@ -135,11 +144,19 @@ public static class M6Validation
     }
 
     private static void SetDuration(string field, float value) => typeof(GameManager).GetField(field, Private).SetValue(game, value);
+    private static float GetHealth(object target, string field) => (float)target.GetType().GetField(field, Private).GetValue(target);
+    private static void SetHealth(object target, float max, float current)
+    {
+        target.GetType().GetField("maxHealth", Private).SetValue(target, max);
+        target.GetType().GetField("currentHealth", Private).SetValue(target, current);
+    }
     private static void Finish()
     {
         EditorApplication.update -= Tick;
         Application.runInBackground = background;
         if (game != null) { SetDuration("dayDuration", oldDay); SetDuration("nightDuration", oldNight); }
+        if (player != null) SetHealth(player, oldPlayerMax, oldPlayerHealth);
+        if (hearth != null) SetHealth(hearth, oldHearthMax, oldHearthHealth);
     }
     private static void Require(bool condition, string message)
     {
