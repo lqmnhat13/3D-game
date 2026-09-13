@@ -90,7 +90,7 @@ SampleScene
 
 ## Current Milestone
 
-**M7 — Building System / Wooden Fence: COMPLETE**
+**M10 — UI / HUD: COMPLETE**
 
 M2–M4 systems are present in the inspected project; their historical checklists
 below have not been re-certified during this M5 task.
@@ -146,9 +146,9 @@ M6  Wave System                           COMPLETE
  ↓
 M7  Building / Wooden Fence               COMPLETE
  ↓
-M8  Player Combat
+M8  Player Combat                          COMPLETE
  ↓
-M9  Win / Lose Conditions
+M9  Win / Lose Conditions                 COMPLETE
  ↓
 M10 UI / HUD
  ↓
@@ -936,6 +936,8 @@ gather Wood
 
 # 13. M8 — Player Combat
 
+Status: **COMPLETE — validated in Play Mode on 2026-09-12**
+
 ## Goal
 
 Allow Player to kill enemies.
@@ -979,17 +981,57 @@ Only introduce if it reduces duplicated combat logic.
 - configurable range
 - Player health
 - enemy attacks can damage Player
-- Player death triggers Game Over
+- Player death stops movement and combat; M9 will trigger Game Over
 
 ## Validation
 
-- [ ] attack input works
-- [ ] enemy takes damage
-- [ ] enemy dies
-- [ ] cooldown prevents spam
-- [ ] enemy damages Player
-- [ ] Player death works
-- [ ] Console clean
+- [x] attack input works
+- [x] enemy takes damage
+- [x] enemy dies
+- [x] cooldown prevents spam
+- [x] enemy damages Player
+- [x] Player death works
+- [x] Console clean
+
+Implementation: Player prefab and scene Player have PlayerHealth (100 max) and
+PlayerCombat (15 damage, 2-unit range, 0.6-second cooldown). The existing Attack
+action remains unchanged. Left click attacks only outside Build Mode; while Build
+Mode is active the same click only confirms Fence placement. A non-allocating
+overlap query selects at most one living EnemyHealth, preferring the nearest.
+
+EnemyController keeps its existing 10 damage / 1-second cooldown and now attacks
+a living Player already within its 1.8-unit melee range before choosing a blocking
+Fence or Hearth. It does not chase Player. Dead Player state does not trigger
+GameOver yet; PlayerCombat and PlayerMovement stop until M9 handles defeat.
+
+Play Mode validation (`Tools/Validation/Run M8 (in Play Mode)`):
+
+- PlayerHealth ignored negative/NaN/infinite amounts; damage/heal changed
+  100 -> 80 -> 85 and excess healing clamped to 100.
+- Left click dealt 15 damage (Crawler 30 -> 15); five spam attempts during the
+  cooldown caused no change; the next attack after 0.6s dealt 15 -> 0 and set Dead.
+- A target at 2.1 units stayed at 30 Health. With two targets in range, only the
+  nearer target changed 30 -> 15; the farther remained at 30.
+- In Build Mode, left click placed exactly one Fence and spent 5 Wood without
+  damaging a nearby enemy. After exiting Build Mode, left click dealt 15 damage.
+- Enemy attacks changed Player 100 -> 90 -> 80 by exact 10-damage hits with the
+  existing one-second cooldown. Overkill clamped at 0 and death fired once.
+- Dead Player could neither attack nor move; no GameOver/UI/scene reload occurred.
+- Existing E input still gathered Wood.
+
+Fresh regression sessions passed after M8: M7 preview/placement/cost/validation,
+Player collision, alternate-route carving, Fence attack/destruction and return to
+Hearth; M6 Night counts (3 then 5), ~1.5s spawning, death tracking and Day cleanup;
+M5 direct Hearth attacks, cooldown, range, Chase/Attack transitions and enemy death.
+
+Final saved state: Play Mode off; SampleScene saved; Player Health 100/100;
+Hearth Health/Fuel 100/100; Day/Night 60/60; no test enemies or Fences.
+Final Unity Console inspection: 0 errors / 0 warnings.
+
+Known limits: melee has no animation, arc, knockback or aim-facing requirement.
+Enemy prioritizes Player only when already within range and does not chase Player.
+There is no line-of-sight test between nearby Player and enemy; complex targeting
+and full defeat behavior remain M9+ scope.
 
 ## Exit Criteria
 
@@ -1004,6 +1046,8 @@ fight enemy
 ---
 
 # 14. M9 — Win / Lose Conditions
+
+Status: **COMPLETE — validated in Play Mode on 2026-09-13**
 
 ## Goal
 
@@ -1057,11 +1101,30 @@ GameOver()
 
 ## Validation
 
-- [ ] Hearth death causes Game Over
-- [ ] Player death causes Game Over
-- [ ] surviving final night causes Victory
-- [ ] gameplay stops correctly
-- [ ] Console clean
+- [x] Hearth death causes Game Over
+- [x] Player death causes Game Over
+- [x] surviving final night causes Victory
+- [x] gameplay stops correctly
+- [x] Console clean
+
+Implementation: `PlayerHealth.Died` and `HearthController.Destroyed` notify the
+existing `GameManager`, which commits one immutable `GameOver` transition. Night
+5 completes as `Victory` only while Player and Hearth remain alive; no Day 6 is
+entered. Terminal state freezes the timer at zero, deactivates PlayerInput,
+disables movement/combat/interaction/building, and disables WaveManager so its
+existing cleanup removes active enemies and cancels pending spawns. Time scale is
+not changed. Fuel reaching zero remains non-terminal and uses minimum light range.
+
+Play Mode validation passed for Player death during Day and Night, Hearth
+destruction, fuel zero, Nights 1–4, Night 5 start/completion, Player and Hearth
+failure at the final boundary, one-shot terminal events, immutable GameOver and
+Victory, input/system shutdown, unchanged time scale, wave cleanup, and no later
+spawning. Fresh M5, M6, M7 and M8 regression validators also passed. Final saved
+state: Play Mode off; Player 100/100; Hearth Health/Fuel 100/100; Day/Night 60/60;
+five required Nights; no runtime enemies or Fences; Console 0 errors / 0 warnings.
+
+Known limits: M9 has no UI, restart, Main Menu, pause, score, Endless Mode or
+save/load behavior. Those remain later milestones.
 
 ## Exit Criteria
 
@@ -1070,6 +1133,8 @@ A complete game can be won or lost.
 ---
 
 # 15. M10 — UI / HUD
+
+Status: **COMPLETE — validated in Play Mode on 2026-09-13**
 
 ## Goal
 
@@ -1113,17 +1178,41 @@ only if time remains.
 
 ```text
 Assets/_Project/Scripts/UI/HUDController.cs
-Assets/_Project/Scripts/UI/GameOverUI.cs
-Assets/_Project/Scripts/UI/VictoryUI.cs
+Assets/_Project/Scripts/UI/EndGameUI.cs
 ```
 
 ## Validation
 
-- [ ] values update correctly
-- [ ] no NullReference errors
-- [ ] HUD readable
-- [ ] Game Over UI works
-- [ ] Victory UI works
+- [x] values update correctly
+- [x] no NullReference errors
+- [x] HUD readable
+- [x] Game Over UI works
+- [x] Victory UI works
+
+Implementation: SampleScene has one Screen Space - Overlay Canvas with a
+top-left HUD plus inactive GameOverPanel and VictoryPanel overlays. HUDController
+uses serialized PlayerHealth, PlayerInventory, HearthController, GameManager and
+WaveManager references. It displays Player/Hearth Health, Fuel, Wood, Stone,
+Day/Night and day number, whole-second time remaining, and living enemy count.
+EndGameUI listens to GameManager.StateChanged and shows exactly one terminal
+panel. Existing UGUI Text is used because TextMeshPro font essentials are not
+configured in Assets; no package or UI asset import was needed.
+
+Play Mode validation passed for starting HUD values; Wood and Stone gathering;
+Player and Hearth damage; Fuel consumption; timer, phase and day changes; live
+wave count and cleanup; Player-death Game Over; and controlled Night 5 Victory.
+Fresh M8 and M7 control/combat/interaction/building regressions passed. M6 waves
+passed with runtime-only elevated Player/Hearth health to isolate the older
+wave validator from M9 terminal defeat, and M5 passed with its expected
+runtime-only crawler. M9 night defeat/cleanup, Hearth defeat, fuel-zero,
+Victory and both final-boundary priority validators passed.
+
+Final saved state: Play Mode off; Player 100/100; Hearth Health/Fuel 100/100;
+Day/Night 60/60; five required Nights; no runtime enemies or Fences; Console
+0 errors / 0 warnings.
+
+Known limits: no restart/menu buttons, pause UI, animations, advanced styling,
+score, Endless Mode or save/load. Those remain outside M10.
 
 ---
 
@@ -1501,20 +1590,20 @@ Whenever a milestone is completed, update this section.
 - M5 — First Enemy + NavMesh AI (validated 2026-09-12; M2–M4 systems were already present)
 - M6 — Wave System (validated 2026-09-12)
 - M7 — Building System / Wooden Fence (validated 2026-09-12)
+- M8 — Player Combat (validated 2026-09-12)
+- M9 — Win / Lose Conditions (validated 2026-09-13)
+- M10 — UI / HUD (validated 2026-09-13)
 
 ## Current
 
-- M7 — COMPLETE
+- M10 — COMPLETE
 
 ## Next
 
-- M8 — Player Combat (not started; requires a separate request)
+- M11 — Polish (not started; requires a separate request)
 
 ## Not Started
 
-- M8 — Player Combat
-- M9 — Win / Lose
-- M10 — UI / HUD
 - M11 — Polish
 
 ---
@@ -1552,8 +1641,8 @@ M2 Hearth System
 
 # 26. Current Immediate Task
 
-**M7 is complete.** See section 12 for Play Mode validation and limitations.
-M8 is next, but requires a separate implementation request.
+**M10 is complete.** See section 15 for Play Mode validation and limitations.
+M11 is next, but requires a separate implementation request.
 
 ---
 

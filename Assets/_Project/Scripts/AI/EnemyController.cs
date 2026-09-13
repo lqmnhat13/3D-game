@@ -14,6 +14,7 @@ public sealed class EnemyController : MonoBehaviour
     private float nextAttackTime;
     private float nextPathTime;
     private Fence blockingFence;
+    private PlayerHealth player;
     private NavMeshPath hearthPath;
     private NavMeshPath approachPath;
     private readonly Vector3[] corners = new Vector3[64];
@@ -37,6 +38,7 @@ public sealed class EnemyController : MonoBehaviour
     private void Start()
     {
         if (hearth == null) hearth = FindFirstObjectByType<HearthController>();
+        player = FindFirstObjectByType<PlayerHealth>();
         agent.stoppingDistance = Mathf.Min(agent.stoppingDistance, attackRange * 0.9f);
     }
 
@@ -51,14 +53,17 @@ public sealed class EnemyController : MonoBehaviour
             return;
         }
 
-        if (Time.time >= nextPathTime)
+        bool targetsPlayer = player != null && player.isActiveAndEnabled && !player.IsDead
+            && HorizontalDistanceSquared(player.transform.position) <= attackRange * attackRange;
+        if (!targetsPlayer && Time.time >= nextPathTime)
         {
             nextPathTime = Time.time + 0.25f;
             UpdateRoute();
         }
 
-        bool targetsFence = blockingFence != null && blockingFence.isActiveAndEnabled && !blockingFence.IsDestroyed;
-        Vector3 target = targetsFence ? blockingFence.ClosestPoint(transform.position) : hearth.transform.position;
+        bool targetsFence = !targetsPlayer && blockingFence != null && blockingFence.isActiveAndEnabled && !blockingFence.IsDestroyed;
+        Vector3 target = targetsPlayer ? player.transform.position
+            : targetsFence ? blockingFence.ClosestPoint(transform.position) : hearth.transform.position;
         Vector3 offset = target - transform.position;
         offset.y = 0f;
         bool fenceInWay = !targetsFence && Physics.Linecast(transform.position, hearth.transform.position,
@@ -73,7 +78,8 @@ public sealed class EnemyController : MonoBehaviour
                 transform.rotation = Quaternion.LookRotation(offset);
             if (Time.time >= nextAttackTime)
             {
-                if (targetsFence) blockingFence.TakeDamage(attackDamage);
+                if (targetsPlayer) player.TakeDamage(attackDamage);
+                else if (targetsFence) blockingFence.TakeDamage(attackDamage);
                 else hearth.TakeDamage(attackDamage);
                 nextAttackTime = Time.time + attackCooldown;
             }
@@ -82,6 +88,13 @@ public sealed class EnemyController : MonoBehaviour
 
         state = EnemyState.Chase;
         agent.isStopped = false;
+    }
+
+    private float HorizontalDistanceSquared(Vector3 target)
+    {
+        Vector3 offset = target - transform.position;
+        offset.y = 0f;
+        return offset.sqrMagnitude;
     }
 
     private void UpdateRoute()

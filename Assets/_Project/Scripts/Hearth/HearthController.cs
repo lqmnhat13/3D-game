@@ -23,6 +23,7 @@ public sealed class HearthController : MonoBehaviour
     public float MaxFuel => maxFuel;
     public float CurrentLightRadius => hearthLight != null ? hearthLight.range : minLightRadius;
     public bool IsDestroyed => currentHealth <= 0f;
+    public event System.Action<HearthController> Destroyed;
 
     private void Awake()
     {
@@ -47,12 +48,15 @@ public sealed class HearthController : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
-        currentHealth = Mathf.Clamp(currentHealth - Mathf.Max(0f, amount), 0f, maxHealth);
+        if (IsDestroyed || !float.IsFinite(amount) || amount <= 0f) return;
+        currentHealth = Mathf.Max(0f, currentHealth - amount);
+        if (IsDestroyed) Destroyed?.Invoke(this);
     }
 
     public void Heal(float amount)
     {
-        currentHealth = Mathf.Clamp(currentHealth + Mathf.Max(0f, amount), 0f, maxHealth);
+        if (!float.IsFinite(amount) || amount <= 0f) return;
+        currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
     }
 
     public void AddFuel(float amount)
